@@ -1,41 +1,63 @@
+from dataclasses import dataclass
 from fasthtml.common import *
+from header import HEADERS
+from components import Badge, HolidayCard
+from lib.utils import *
 
-app, rt = fast_app(hdrs=(picolink))
 
+custom_css = Link(rel="stylesheet", href="./main.css", type="text/css")
+tailwind_css = Link(
+    rel="stylesheet",
+    href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css",
+    type="text/css",
+)
+tailwind_js = Script(src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4")
+daisyui_css = Link(
+    rel="stylesheet",
+    href="https://cdn.jsdelivr.net/npm/daisyui@4.12.22/dist/full.min.css",
+    type="text/css",
+)
 
-@rt("/")
+hdrs = (
+    tailwind_css,
+    tailwind_js,
+    #daisyui_css,
+    custom_css,
+)
+
+app, rt = fast_app(live=True, pico=False, hdrs=hdrs)
+
+@rt('/seed')
 def get():
-    return (
-        Socials(
-            title="Vercel + FastHTML",
-            site_name="Vercel",
-            description="A demo of Vercel and FastHTML integration",
-            image="https://vercel.fyi/fasthtml-og",
-            url="https://fasthtml-template.vercel.app",
-            twitter_site="@vercel",
-        ),
-        Container(
-            Card(
-                Group(
-                    P(
-                        "FastHTML is a new next-generation web framework for fast, scalable web applications with minimal, compact code. It builds on top of popular foundations like ASGI and HTMX. You can now deploy FastHTML with Vercel CLI or by pushing new changes to your git repository.",
-                    ),
-                ),
-                header=(Titled("FastHTML + Vercel")),
-                footer=(
-                    P(
-                        A(
-                            "Deploy your own",
-                            href="https://vercel.com/templates/python/fasthtml-python-boilerplate",
-                        ),
-                        " or ",
-                        A("learn more", href="https://docs.fastht.ml/"),
-                        "about FastHTML.",
-                    )
-                ),
-            ),
-        ),
-    )
+    seed_db()
+    return RedirectResponse(url="/")
 
+    
+@rt
+def index():
+    holiday = get_next_nearest_holiday()
+    holiday_name = holiday.get('name')
+    holiday_date = str2date(holiday.get('date'))
+    holiday_type = holiday.get('type')
+    days_until_holiday = (holiday_date - date.today()).days
+    days_until_holiday_str = f"{days_until_holiday} days from now" if days_until_holiday > 0 else "today"
+
+    upcoming_holidays = [Holiday(**h) for h in next_n_upcoming_holidays(holiday, 4)]
+
+    return Div(
+        Div(
+            P("The next holiday is", cls="text-2xl"),
+            H1(holiday_name, cls="text-6xl font-strech-condensed mt-6 mb-4"),
+            Badge(holiday_type, color="slate", font_size="md"),
+            P(f"{holiday_date.strftime('%B %d, %Y')} ({holiday_date.strftime('%A')})", cls="text-3xl mt-4"),
+            P(days_until_holiday_str),
+            cls="flex flex-col flex-grow items-start justify-center pl-12 bg-slate-50",
+        ),
+        Div(
+            *(HolidayCard(uh) for uh in upcoming_holidays),
+            cls="border flex flex-col flex-grow items-center justify-center bg-slate-50",
+        ),
+        cls="flex flex-row flex-grow h-screen"
+    )
 
 serve()
